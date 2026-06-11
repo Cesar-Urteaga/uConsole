@@ -7,8 +7,9 @@ dpkg --version > /dev/null 2>&1
 if [ "x$?" = x0 ]; then
     have_dpkg="yes"
 fi
-dpkg_indicates_arm64="no"
+dpkg_indicates_arm64="yes"
 if [ "$have_dpkg" = "yes" ]; then
+    dpkg_indicates_arm64="no"
     dpkg_arch_output="`dpkg --print architecture`"
     echo "$dpkg_arch_output" | grep -q "arm64"
     if [ "x$?" = x0 ]; then
