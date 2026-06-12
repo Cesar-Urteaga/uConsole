@@ -2,26 +2,52 @@
 
 #set -e
 
-architecture="unknow"
+have_dpkg="no"
+dpkg --version > /dev/null 2>&1
+if [ "x$?" = x0 ]; then
+    have_dpkg="yes"
+fi
+dpkg_indicates_arm64="yes"
+if [ "$have_dpkg" = "yes" ]; then
+    dpkg_indicates_arm64="no"
+    dpkg_arch_output="`dpkg --print architecture`"
+    echo "$dpkg_arch_output" | grep -q "arm64"
+    if [ "x$?" = x0 ]; then
+        dpkg_indicates_arm64="yes"
+    fi
+fi
+
+architecture="unknown"
 case $(uname -m) in
     x86_64) architecture="amd64" ;;
-    armv7l)    dpkg --print-architecture | grep -q "arm64" && architecture="aarch64" || architecture="armhf" ;;
-    arm)    dpkg --print-architecture | grep -q "arm64" && architecture="aarch64" || architecture="armhf" ;;
+    armv7l)
+        if [ "$dpkg_indicates_arm64" = "yes" ]; then
+            architecture="aarch64"
+        else
+            architecture="armhf"
+        fi;;
+    arm)
+        if [ "$dpkg_indicates_arm64" = "yes" ]; then
+            architecture="aarch64"
+        else
+            architecture="armhf"
+        fi;;
     aarch64) architecture="aarch64";;
     riscv64) architecture="riscv64";;
 esac
 
-
-if [ $architecture = "unknow" ]; then
-	echo "unknow architecture,exiting..."
-	exit
+if [ $architecture = "unknown" ]; then
+    echo "unknown architecture,exiting..."
+    exit
 fi
-
 
 if [ $# -lt 4 ]; then
     echo "Usage: $0 $# <dummy_port> <altID> <usbID> <binfile>" >&2
     exit 1
 fi
+
+echo "Detected architecture: $architecture"
+
 dummy_port="$1"; altID="$2"; usbID="$3"; binfile="$4"; dummy_port_fullpath="/dev/$1"
 if [ $# -eq 5 ]; then
     dfuse_addr="--dfuse-address $5"
@@ -62,7 +88,9 @@ echo "${DFU_UTIL}" -d ${usbID} -a ${altID} -D ${binfile} ${dfuse_addr} -R
 "${DFU_UTIL}" -d ${usbID} -a ${altID} -D ${binfile} ${dfuse_addr} -R
 
 echo -n Waiting for ${dummy_port_fullpath} serial...
-dpkg --print-architecture
+if [ "$have_dpkg" = "yes" ]; then
+    dpkg --print-architecture
+fi
 COUNTER=0
 while [ ! -c ${dummy_port_fullpath} ] && ((COUNTER++ < 40)); do
     sleep 0.2
